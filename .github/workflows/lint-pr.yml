@@ -1,0 +1,61 @@
+name: Lint frontend assets
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "site/**"
+      - ".github/workflows/lint-pr.yml"
+      - ".htmlhintrc"
+      - ".stylelintrc.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: HTML, CSS and JavaScript checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint HTML
+        run: |
+          npx --yes htmlhint@1.6.3 --config .htmlhintrc "site/**/*.html"
+
+      - name: Lint CSS
+        run: |
+          npx --yes stylelint@16 "site/**/*.css" --config .stylelintrc.json
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          files=(site/**/*.js)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No JavaScript files found under site/"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      # site/ holds minified production bundles that include vendor code
+      # (e.g. React's scheduler), which trips structural rules such as
+      # no-unreachable. Only rules meaningful for built output are enforced.
+      - name: Run ESLint checks on JavaScript bundles
+        run: |
+          npx --yes eslint@9 "site/**/*.js" \
+            --no-config-lookup \
+            --no-ignore \
+            --rule "no-debugger:error"
