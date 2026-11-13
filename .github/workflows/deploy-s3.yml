@@ -5,7 +5,13 @@ on:
     branches:
       - main
     paths:
-      - "site/**"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.js"
+      - "scripts/deploy.mjs"
       - ".github/workflows/deploy-s3.yml"
   workflow_dispatch:
 
@@ -19,12 +25,27 @@ concurrency:
 
 jobs:
   deploy:
-    name: Sync site to S3
+    name: Build and sync to S3
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
 
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -33,6 +54,9 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
           role-session-name: GitHubActionsGymDeploy
 
-      - name: Sync site directory to S3
-        run: |
-          aws s3 sync ./site/ "s3://${{ vars.S3_BUCKET_NAME }}/" --delete
+      # scripts/deploy.mjs syncs dist/ with long-lived caching for hashed
+      # assets and no-cache for index.html, then removes stale files.
+      - name: Sync dist to S3
+        env:
+          S3_BUCKET: ${{ vars.S3_BUCKET_NAME }}
+        run: node scripts/deploy.mjs

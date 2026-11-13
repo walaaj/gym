@@ -5,7 +5,12 @@ on:
     branches:
       - main
     paths:
-      - "site/**"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.js"
       - ".github/workflows/lint-pr.yml"
       - ".htmlhintrc"
       - ".stylelintrc.json"
@@ -26,36 +31,32 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
 
       - name: Lint HTML
         run: |
-          npx --yes htmlhint@1.6.3 --config .htmlhintrc "site/**/*.html"
+          npx --yes htmlhint@1.6.3 --config .htmlhintrc index.html "dist/**/*.html"
 
       - name: Lint CSS
         run: |
-          npx --yes stylelint@16 "site/**/*.css" --config .stylelintrc.json
+          npx --yes stylelint@16 "src/**/*.css" --config .stylelintrc.json
 
-      - name: Check JavaScript syntax
-        shell: bash
-        run: |
-          shopt -s globstar nullglob
-          files=(site/**/*.js)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No JavaScript files found under site/"
-            exit 1
-          fi
-          for file in "${files[@]}"; do
-            echo "Checking $file"
-            node --check "$file"
-          done
-
-      # site/ holds minified production bundles that include vendor code
+      # dist/ holds minified production bundles that include vendor code
       # (e.g. React's scheduler), which trips structural rules such as
       # no-unreachable. Only rules meaningful for built output are enforced.
       - name: Run ESLint checks on JavaScript bundles
         run: |
-          npx --yes eslint@9 "site/**/*.js" \
+          npx --yes eslint@9 "dist/**/*.js" \
             --no-config-lookup \
             --no-ignore \
             --rule "no-debugger:error"

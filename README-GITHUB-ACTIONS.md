@@ -1,12 +1,14 @@
 # Gym React frontend — GitHub Actions + S3
 
-This package contains the production-built React frontend in `site/` and two GitHub Actions workflows.
+The repository root is the Vite + React source of the Evening Gym Tracker (see `README.md`).
+Two GitHub Actions workflows build and check it, then publish it to S3.
 
 ## Repository layout
 
-- `site/`: production build files to publish to S3
-- `.github/workflows/deploy-s3.yml`: deploys `site/` to S3 on pushes to `main`
-- `.github/workflows/lint-pr.yml`: runs HTML, CSS, and JavaScript checks on pull requests targeting `main`
+- `src/`, `public/`, `index.html`, `vite.config.js`: React source (build output goes to `dist/`, git-ignored)
+- `scripts/deploy.mjs`: uploads `dist/` to S3 with cache headers (used by the deploy workflow and `npm run deploy`)
+- `.github/workflows/lint-pr.yml`: on pull requests to `main`, runs `npm ci`, unit tests, the build, HTMLHint, Stylelint on `src/**/*.css` and ESLint on the built bundles
+- `.github/workflows/deploy-s3.yml`: on pushes to `main`, runs `npm ci`, tests and the build, then deploys `dist/` to S3 via `scripts/deploy.mjs`
 - `.htmlhintrc`, `.stylelintrc.json`: lint configuration
 
 ## GitHub repository variables
@@ -21,7 +23,7 @@ The deployment workflow uses GitHub OIDC. Do not add long-lived AWS access keys.
 
 ## Important notes
 
-1. The uploaded archive was a production build, not the React source project. The deployment workflow therefore syncs the existing build directly; it does not run `npm install` or `npm run build`.
-2. The PR workflow checks the built HTML/CSS/JS assets. For full source-level linting, add the original React source, `package.json`, and its lockfile, then configure ESLint/TypeScript linting against `src/`.
-3. `aws s3 sync --delete` removes destination objects that are absent from `site/`. Use this only while the bucket is dedicated to this frontend.
+1. Both workflows only run when app source, dependencies, build config or the workflow itself changes.
+2. ESLint runs against the built bundles with `no-debugger` only; minified vendor code makes structural rules such as `no-unreachable` report false positives. For source-level linting, add an `eslint.config.js` with React/JSX support and lint `src/`.
+3. The deploy removes objects in the bucket that are not in the new build. Use it only while the bucket is dedicated to this frontend.
 4. The workflow expects the IAM role trust policy to allow this repository's `main` branch and the role's S3 policy to allow the required bucket operations.
