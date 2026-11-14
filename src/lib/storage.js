@@ -1,43 +1,29 @@
-// Progress and settings live in this browser's localStorage. Progress (which step you
-// are on) is kept for the current calendar day only; settings are kept permanently.
+// Settings (rest lengths, sound) stay in this browser's localStorage, namespaced
+// by the Cognito `sub`. Workout progress is stored through the API (see api.js).
+const KEY_PREFIX = 'gym.v1'
 
-const KEY = 'gym.v1'
+const storageKey = (userId) => `${KEY_PREFIX}:${userId || 'anonymous'}`
 
-const todayStr = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
+const DEFAULTS = { restSec: 90, warmRest: 30, sound: true }
 
-const DEFAULTS = { restSec: 90, warmRest: 30, sound: true, idxByDay: {} }
-
-export function loadSaved() {
+export function loadSettings(userId) {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || 'null')
+    const raw = JSON.parse(localStorage.getItem(storageKey(userId)) || 'null')
     if (!raw) return DEFAULTS
     return {
       restSec: raw.rest || DEFAULTS.restSec,
-      warmRest: raw.wrest || DEFAULTS.warmRest,
-      sound: typeof raw.sound === 'boolean' ? raw.sound : DEFAULTS.sound,
-      idxByDay: raw.date === todayStr() && raw.idx ? raw.idx : {},
+      warmRest: raw.warmRest || DEFAULTS.warmRest,
+      sound: raw.sound !== false,
     }
   } catch {
     return DEFAULTS
   }
 }
 
-export function save({ day, idx, idxByDay, restSec, warmRest, sound }) {
+export function saveSettings(userId, { restSec, warmRest, sound }) {
   try {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({
-        date: todayStr(),
-        idx: { ...idxByDay, [day]: idx },
-        rest: restSec,
-        wrest: warmRest,
-        sound,
-      }),
-    )
+    localStorage.setItem(storageKey(userId), JSON.stringify({ rest: restSec, warmRest, sound }))
   } catch {
-    /* storage blocked: the app still works, it just won't remember */
+    // Storage blocked: the app still works, but won't remember settings.
   }
 }

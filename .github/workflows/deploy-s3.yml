@@ -44,7 +44,15 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      # Optional repo variables. Empty values fall back to the defaults in
+      # src/auth/oidcConfig.js (redirect URI = the page's own origin) and
+      # src/auth/useApiClient.js (workouts API URL).
       - name: Build
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+          VITE_COGNITO_AUTHORITY: ${{ vars.COGNITO_AUTHORITY }}
+          VITE_COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
+          VITE_COGNITO_REDIRECT_URI: ${{ vars.COGNITO_REDIRECT_URI }}
         run: npm run build
 
       - name: Configure AWS credentials with OIDC

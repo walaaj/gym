@@ -105,4 +105,20 @@ describe('workoutReducer', () => {
     for (let i = 0; i < 30; i++) s = run(s, 'SET_WARM_REST', { delta: -15 })
     expect(s.warmRest).toBe(15)
   })
+  it("LOAD_PROGRESS restores server progress while idle", () => {
+    let s = createInitialState("mon", saved)
+    s = run(s, "LOAD_PROGRESS", { idxByDay: { mon: 5, tue: 2 } })
+    expect(s).toMatchObject({ day: "mon", idx: 5, phase: "ready" })
+    expect(s.idxByDay).toMatchObject({ mon: 5, tue: 2 })
+  })
+
+  it("LOAD_PROGRESS never interrupts a running activity", () => {
+    let s = run(createInitialState("mon", saved), "START")
+    s = run(s, "LOAD_PROGRESS", { idxByDay: { mon: 0 } })
+    expect(s).toMatchObject({ idx: 0, phase: "active" })
+    s = run(createInitialState("mon", saved), "LOAD_PROGRESS", { idxByDay: { mon: 3 } })
+    s = run(s, "START")
+    s = run(s, "LOAD_PROGRESS", { idxByDay: { mon: 0 } })
+    expect(s).toMatchObject({ idx: 3, phase: "active" })
+  })
 })

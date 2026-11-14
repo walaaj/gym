@@ -27,7 +27,7 @@ function enterDay(state, day) {
 
 export function createInitialState(day, saved) {
   return enterDay(
-    { idx: 0, phase: 'ready', endAt: 0, total: 0, startAt: 0, armed: false, ...saved },
+    { idx: 0, phase: 'ready', endAt: 0, total: 0, startAt: 0, armed: false, idxByDay: {}, restSec: 90, warmRest: 30, sound: true, ...saved },
     day,
   )
 }
@@ -41,6 +41,17 @@ export function workoutReducer(state, action) {
         { ...state, idxByDay: { ...state.idxByDay, [state.day]: state.idx } },
         action.day,
       )
+
+    // Progress loaded from (or changed on) the server: { [day]: stepIndex }.
+    // Only applied while nothing is running, so it never interrupts a set or rest.
+    case 'LOAD_PROGRESS': {
+      const idxByDay = { ...state.idxByDay, ...action.idxByDay }
+      if (state.phase !== 'ready' && state.phase !== 'done') return { ...state, idxByDay }
+      return enterDay({ ...state, idxByDay }, state.day)
+    }
+
+    case 'LOAD_SETTINGS':
+      return { ...state, restSec: action.settings.restSec, warmRest: action.settings.warmRest, sound: action.settings.sound }
 
     case 'SET_REST':
       return { ...state, restSec: clamp(state.restSec + action.delta, 30, 300) }
