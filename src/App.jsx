@@ -9,7 +9,8 @@ import { useRestAlarm, useRinging, useSoundSetting, useWakeLock } from './hooks/
 import { useWorkoutSync } from './hooks/useWorkoutSync.js'
 import { ensureAudio } from './lib/audio.js'
 import { fmt, getSession, stepLabel } from './lib/session.js'
-import { createInitialState, workoutReducer } from './state/workoutReducer.js'
+import { createInitialState, skippedFor, workoutReducer } from './state/workoutReducer.js'
+import { useWorkoutImages } from './hooks/useWorkoutImages.js'
 
 // Browsers only allow sound after a tap, so unlock audio on these actions.
 const UNLOCKS_AUDIO = new Set(['START', 'DONE', 'NEXT', 'TOGGLE_SOUND'])
@@ -37,6 +38,7 @@ export default function App({ user, api, onSignOut, onSessionExpired }) {
   )
 
   const session = isTraining(state.day) ? getSession(state.day) : null
+  const workoutImages = useWorkoutImages(api)
 
   const act = useCallback((type, extra) => {
     if (UNLOCKS_AUDIO.has(type)) ensureAudio()
@@ -49,12 +51,14 @@ export default function App({ user, api, onSignOut, onSessionExpired }) {
   useWakeLock(KEEP_AWAKE.has(state.phase))
 
   const { day, idx, restSec, warmRest, sound } = state
+  const skipped = skippedFor(state)
   const sync = useWorkoutSync({
     api,
     day,
     idx,
     phase: state.phase,
     session,
+    skipped,
     dispatch,
     onSessionExpired,
     settings: { restSec, warmRest, sound },
@@ -95,9 +99,17 @@ export default function App({ user, api, onSignOut, onSessionExpired }) {
         <div className="progress" aria-hidden="true">
           <i style={{ width: `${progress}%` }} />
         </div>
-        <SessionCard state={state} session={session} act={act} />
+        <SessionCard state={state} session={session} skipped={skipped} act={act} images={workoutImages} />
         {session && (
-          <Outline session={session} idx={idx} phase={state.phase} armed={state.armed} act={act} />
+          <Outline
+            session={session}
+            idx={idx}
+            phase={state.phase}
+            armed={state.armed}
+            skipped={skipped}
+            act={act}
+            images={workoutImages}
+          />
         )}
         <p className="sync-note account-sync-note">
           Your daily workout progress and preferences are saved to your account.

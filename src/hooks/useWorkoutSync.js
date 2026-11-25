@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { isSessionExpired } from '../lib/api.js'
 import { isTraining } from '../data/plan.js'
 import { getSession } from '../lib/session.js'
+import { completedStepsFor, skippedFromProgress } from '../lib/progress.js'
 
 const SAVE_DELAY_MS = 600
 const PLAN_VERSION = '1'
 const DEFAULT_SETTINGS = { restSec: 90, warmRest: 30, sound: true }
+const NO_SKIPS = []
 
 export function beirutDate(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -26,17 +28,18 @@ function normalizeSettings(value = {}) {
   }
 }
 
-function progressPayload(day, currentStep, totalSteps) {
-  const step = Math.max(0, Math.min(Number(currentStep) || 0, totalSteps))
+function progressPayload(day, currentStep, steps, skipped = []) {
+  const step = Math.max(0, Math.min(Number(currentStep) || 0, steps.length))
   return {
     planId: day,
     planVersion: PLAN_VERSION,
     currentStep: step,
-    completedSteps: Array.from({ length: step }, (_, index) => index),
+    // Skipped exercises are left out; see lib/progress.js.
+    completedSteps: completedStepsFor(steps, step, skipped),
   }
 }
 
-export function useWorkoutSync({ api, day, idx, phase, session, dispatch, onSessionExpired, settings }) {
+export function useWorkoutSync({ api, day, idx, phase, session, skipped = NO_SKIPS, dispatch, onSessionExpired, settings }) {
   const [status, setStatus] = useState('loading')
   const [loadError, setLoadError] = useState(null)
   const [saveError, setSaveError] = useState(null)
@@ -79,10 +82,15 @@ export function useWorkoutSync({ api, day, idx, phase, session, dispatch, onSess
         const restored = Math.max(0, Number(progress.currentStep) || 0)
         const restoredSession = getSession(progress.planId)
         const safeStep = Math.min(restored, restoredSession.steps.length)
-        dispatch({ type: 'LOAD_PROGRESS', idxByDay: { [progress.planId]: safeStep } })
+        const restoredSkips = skippedFromProgress(restoredSession.steps, safeStep, progress.completedSteps)
+        dispatch({
+          type: 'LOAD_PROGRESS',
+          idxByDay: { [progress.planId]: safeStep },
+          skippedByDay: { [progress.planId]: restoredSkips },
+        })
         lastProgressRef.current = JSON.stringify({
           date: beirutDate(),
-          ...progressPayload(progress.planId, safeStep, restoredSession.steps.length),
+          ...progressPayload(progress.planId, safeStep, restoredSession.steps, restoredSkips),
         })
         progressPlanIdRef.current = progress.planId
         lastSavedStepRef.current = safeStep
@@ -128,15 +136,16 @@ export function useWorkoutSync({ api, day, idx, phase, session, dispatch, onSess
     if (status !== 'ready' || !isTraining(day) || !session) return
     const running = phase === 'active' || phase === 'rest' || phase === 'alarm' || phase === 'done'
     const changedExistingProgress = progressPlanIdRef.current === day && lastSavedStepRef.current !== idx
-    if (!running && !changedExistingProgress) return
+    // Skipping counts as starting the workout, even before the first Start.
+    if (!running && !changedExistingProgress && skipped.length === 0) return
 
-    const payload = progressPayload(day, idx, session.steps.length)
+    const payload = progressPayload(day, idx, session.steps, skipped)
     const signature = JSON.stringify({ date: beirutDate(), ...payload })
     if (signature === lastProgressRef.current) return
 
     const timer = setTimeout(() => saveProgress(payload).catch(() => {}), SAVE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [status, day, idx, phase, session, saveProgress])
+  }, [status, day, idx, phase, session, skipped, saveProgress])
 
   // Save account-level preferences after the initial server settings have loaded.
   useEffect(() => {

@@ -12,7 +12,7 @@ on:
       - "package-lock.json"
       - "vite.config.js"
       - "scripts/deploy.mjs"
-      - ".github/workflows/deploy-s3.yml"
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:

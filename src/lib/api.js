@@ -53,6 +53,7 @@ export function createApiClient({ baseUrl, getAccessToken, refreshToken, fetchIm
   if (!baseUrl) throw new Error('Missing API base URL (VITE_API_BASE_URL)')
   const root = baseUrl.replace(/\/+$/, '')
   const doFetch = fetchImpl || ((...args) => fetch(...args))
+  let settingsCache = null
 
   async function send(method, path, token, body) {
     const controller = new AbortController()
@@ -127,16 +128,28 @@ export function createApiClient({ baseUrl, getAccessToken, refreshToken, fetchIm
       try {
         const result = await request('GET', '/settings')
         const value = unwrap(result, 'settings')
-        return value && typeof value === 'object' ? value : {}
+        settingsCache = value && typeof value === 'object' ? value : {}
+        return settingsCache
       } catch (err) {
         if (err instanceof ApiError && err.kind === 'notFound') return {}
         throw err
       }
     },
     async saveSettings(settings) {
-      const result = await request('PUT', '/settings', { settings })
+      const current = settingsCache || await this.getSettings()
+      const merged = { ...current, ...settings }
+      const result = await request('PUT', '/settings', { settings: merged })
       const saved = unwrap(result, 'settings')
-      return saved && typeof saved === 'object' ? saved : settings
+      settingsCache = saved && typeof saved === 'object' ? saved : merged
+      return settingsCache
+    },
+    async createUploadUrl(payload) {
+      return unwrap(await request('POST', '/uploads/presign', payload), 'upload')
+    },
+    async getUploadViewUrl(key) {
+      const result = unwrap(await request('POST', '/uploads/view', { key }), 'view')
+      if (!result?.viewUrl) throw new ApiError('The server did not return an image URL.')
+      return result.viewUrl
     },
   }
 }

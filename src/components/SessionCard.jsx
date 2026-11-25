@@ -5,6 +5,7 @@ import NextUp from './NextUp.jsx'
 import RestRing from './RestRing.jsx'
 import StepInfo from './StepInfo.jsx'
 import Stopwatch from './Stopwatch.jsx'
+import WorkoutImage from './WorkoutImage.jsx'
 
 const ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -17,7 +18,26 @@ function nextTrainingDay(day) {
   return null
 }
 
-export default function SessionCard({ state, session, act }) {
+// Skips every remaining set of the shown exercise; partners in a superset continue.
+function SkipButton({ step, upcoming, act }) {
+  return (
+    <button className="link" onClick={() => act('SKIP')}>
+      {upcoming ? `Skip next exercise (${step.e.name})` : 'Skip this exercise'}
+    </button>
+  )
+}
+
+function UndoSkip({ state, steps, act }) {
+  if (!state.lastSkip) return null
+  const entry = steps.find((s) => s.e.id === state.lastSkip.entryId)?.e
+  return (
+    <button className="link" onClick={() => act('UNDO_SKIP')}>
+      Undo skip{entry ? ` (${entry.name})` : ''}
+    </button>
+  )
+}
+
+export default function SessionCard({ state, session, skipped = [], act, images }) {
   const { phase, day, idx } = state
 
   if (!session) {
@@ -45,8 +65,12 @@ export default function SessionCard({ state, session, act }) {
         <div className="kicker">{title}</div>
         <h2 className="ex">Session complete</h2>
         <p className="detail">
-          All {steps.length} steps done. Eat, hydrate and keep tomorrow’s walk easy.
+          {skipped.length
+            ? `Done, with ${skipped.length} exercise${skipped.length === 1 ? '' : 's'} skipped.`
+            : `All ${steps.length} steps done.`}{' '}
+          Eat, hydrate and keep tomorrow’s walk easy.
         </p>
+        <UndoSkip state={state} steps={steps} act={act} />
         <div className="row">
           <button className="ghost" onClick={() => act('BACK')}>
             Undo last
@@ -76,9 +100,13 @@ export default function SessionCard({ state, session, act }) {
             Skip rest and start
           </button>
         </div>
-        <button className="link" onClick={() => act('BACK')}>
-          Undo last set
-        </button>
+        <div className="links">
+          <SkipButton step={step} upcoming act={act} />
+          <UndoSkip state={state} steps={steps} act={act} />
+          <button className="link" onClick={() => act('BACK')}>
+            Undo last set
+          </button>
+        </div>
       </section>
     )
   }
@@ -92,6 +120,10 @@ export default function SessionCard({ state, session, act }) {
         <button className="big" onClick={() => act('NEXT')}>
           Start {isBlock ? 'next' : 'set'}
         </button>
+        <div className="links">
+          <SkipButton step={step} upcoming act={act} />
+          <UndoSkip state={state} steps={steps} act={act} />
+        </div>
       </section>
     )
   }
@@ -103,6 +135,7 @@ export default function SessionCard({ state, session, act }) {
       <section className="card" data-phase="active">
         <div className="kicker">In progress</div>
         <h2 className="ex">{step.e.name}</h2>
+        <WorkoutImage exercise={step.e} images={images} />
         <StepInfo step={step} />
         <Stopwatch startAt={state.startAt} />
         <button className="big" onClick={() => act('DONE')}>
@@ -115,11 +148,15 @@ export default function SessionCard({ state, session, act }) {
               ? `A ${fmt(restSeconds)} rest timer starts when you finish.`
               : 'The next activity starts right after you finish.'}
         </p>
-        {idx > 0 && (
-          <button className="link" onClick={() => act('BACK')}>
-            Undo, go back one
-          </button>
-        )}
+        <div className="links">
+          <SkipButton step={step} act={act} />
+          <UndoSkip state={state} steps={steps} act={act} />
+          {idx > 0 && (
+            <button className="link" onClick={() => act('BACK')}>
+              Undo, go back one
+            </button>
+          )}
+        </div>
       </section>
     )
   }
@@ -132,16 +169,21 @@ export default function SessionCard({ state, session, act }) {
         {PLAN[day].title}
       </div>
       <h2 className="ex">{step.e.name}</h2>
+      <WorkoutImage exercise={step.e} images={images} />
       <StepInfo step={step} />
       <DemoLink entry={step.e} />
       <button className="big" onClick={() => act('START')}>
         {isBlock ? 'Start' : 'Start set'}
       </button>
-      {idx > 0 && (
-        <button className="link" onClick={() => act('BACK')}>
-          Undo, go back one
-        </button>
-      )}
+      <div className="links">
+        <SkipButton step={step} act={act} />
+        <UndoSkip state={state} steps={steps} act={act} />
+        {idx > 0 && (
+          <button className="link" onClick={() => act('BACK')}>
+            Undo, go back one
+          </button>
+        )}
+      </div>
     </section>
   )
 }
