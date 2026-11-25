@@ -130,3 +130,23 @@ h1{font-family:var(--display);font-weight:700;font-size:28px;letter-spacing:.02e
 .hist-edit textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;resize:vertical}
 .hist-actions{display:flex;gap:8px;flex-wrap:wrap}
 .hist-empty{margin:0;color:var(--muted);font-size:14px}
+
+/* Skipping exercises */
+.links{display:flex;flex-wrap:wrap;column-gap:16px;align-items:center}
+.skip-mark{color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.ent.skipped .nm{text-decoration:line-through;text-decoration-color:var(--muted)}
+
+/* Exercise image upload and preview */
+.workout-image{display:flex;flex-direction:column;gap:8px;min-width:0}
+.workout-image-preview{display:block;width:min(100%,420px);max-height:360px;object-fit:contain;object-position:left center;border-radius:10px;background:var(--surface2)}
+.workout-image-placeholder{width:min(100%,420px);min-height:90px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);background:var(--surface2)}
+.workout-image-placeholder span{font-size:24px}
+.workout-image-placeholder small{font-size:13px}
+.workout-image-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.image-action{font-weight:600}
+.image-action:disabled{opacity:.6;cursor:default}
+.image-error{font-size:13px;color:var(--alarm);flex-basis:100%}
+.workout-image.compact{margin-top:6px;gap:5px}
+.workout-image.compact .workout-image-preview,.workout-image.compact .workout-image-placeholder{width:min(100%,180px);max-height:120px;min-height:55px}
+.workout-image.compact .workout-image-actions{gap:8px}
+.workout-image.compact .image-action{font-size:12px}

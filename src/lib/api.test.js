@@ -53,14 +53,19 @@ describe('createApiClient', () => {
     expect(await api.getSettings()).toEqual(settings)
   })
 
-  it('saves settings in the settings object', async () => {
-    const settings = { restSec: 105, warmRest: 45, sound: true }
-    const { api, fetchImpl } = setup({ responses: [response(200, { settings })] })
-    await api.saveSettings(settings)
-    const [url, init] = fetchImpl.mock.calls[0]
+  it('merges changes into the current settings when saving', async () => {
+    const remote = { restSec: 90, warmRest: 30, sound: true, workoutImages: { 'dead-bug': 'key-1' } }
+    const prefs = { restSec: 105, warmRest: 45, sound: true }
+    const merged = { ...remote, ...prefs }
+    const { api, fetchImpl } = setup({
+      responses: [response(200, { settings: remote }), response(200, { settings: merged })],
+    })
+    expect(await api.saveSettings(prefs)).toEqual(merged)
+    expect(fetchImpl.mock.calls[0][1].method).toBe('GET') // nothing loaded yet
+    const [url, init] = fetchImpl.mock.calls[1]
     expect(url).toBe('https://api.example.com/settings')
     expect(init.method).toBe('PUT')
-    expect(JSON.parse(init.body)).toEqual({ settings })
+    expect(JSON.parse(init.body)).toEqual({ settings: merged })
   })
 
   it('renews the token once on 401 and retries', async () => {
